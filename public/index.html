@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Patangbaazi: Kite Clash</title>
+  <link rel="stylesheet" href="style.css">
+  <script src="/socket.io/socket.io.js"></script>
+</head>
+<body>
+  <!-- Lobby / Room UI -->
+  <div id="lobby-screen" class="overlay-panel">
+    <div class="card">
+      <h1 class="game-title">🪁 PATANG BAAZI</h1>
+      <p class="subtitle">Multiplayer Rooftop Pecha</p>
+      
+      <input type="text" id="player-name" placeholder="Apna Naam Likho" maxlength="12" />
+      <input type="text" id="room-code" placeholder="Room Code (e.g. SKY1)" maxlength="6" />
+
+      <button id="btn-join" class="btn-primary">Join / Create Room</button>
+      <div id="lobby-status" class="status-text"></div>
+    </div>
+  </div>
+
+  <!-- In-Game HUD -->
+  <div id="game-ui" class="hidden">
+    <header class="scoreboard">
+      <div class="score-box left-player">
+        <span id="p1-name">P1</span>: <strong id="p1-score">0</strong>
+      </div>
+      <div class="wind-indicator">
+        <span>Wind</span>
+        <div id="wind-arrow">➔</div>
+      </div>
+      <div class="score-box right-player">
+        <span id="p2-name">P2</span>: <strong id="p2-score">0</strong>
+      </div>
+    </header>
+
+    <canvas id="gameCanvas"></canvas>
+
+    <!-- Mobile Touch Controls -->
+    <div class="touch-controls">
+      <div class="control-group steer-group">
+        <button id="btn-steer-left" class="touch-btn steer-btn">◀</button>
+        <button id="btn-steer-right" class="touch-btn steer-btn">▶</button>
+      </div>
+      <div class="control-group action-group">
+        <button id="btn-dheel" class="touch-btn dheel-btn">💨 DHEEL</button>
+        <button id="btn-khinch" class="touch-btn khinch-btn">⚡ KHINCH</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="audio.js"></script>
+  <script src="game.js"></script>
+</body>
+</html>
