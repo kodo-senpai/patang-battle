@@ -17,7 +17,7 @@
       <input type="text" id="player-name" placeholder="Apna Naam Likho" maxlength="12" />
       <input type="text" id="room-code" placeholder="Room Code (e.g. SKY1)" maxlength="6" />
 
-      <button id="btn-join" class="btn-primary">Join / Create Room</button>
+      <button id="btn-join" class="btn-play">Join / Create Room</button>
       <div id="lobby-status" class="status-text"></div>
     </div>
   </div>
@@ -28,7 +28,7 @@
       <div class="score-box left-player">
         <span id="p1-name">P1</span>: <strong id="p1-score">0</strong>
       </div>
-      <div class="wind-indicator">
+      <div class="wind-badge">
         <span>Wind</span>
         <div id="wind-arrow">➔</div>
       </div>
@@ -39,15 +39,15 @@
 
     <canvas id="gameCanvas"></canvas>
 
-    <!-- Mobile Touch Controls -->
-    <div class="touch-controls">
-      <div class="control-group steer-group">
-        <button id="btn-steer-left" class="touch-btn steer-btn">◀</button>
-        <button id="btn-steer-right" class="touch-btn steer-btn">▶</button>
+    <!-- Controls Container (Always On Top) -->
+    <div class="touch-zone">
+      <div class="control-cluster">
+        <button type="button" id="btn-steer-left" class="action-btn steer-btn">◀</button>
+        <button type="button" id="btn-steer-right" class="action-btn steer-btn">▶</button>
       </div>
-      <div class="control-group action-group">
-        <button id="btn-dheel" class="touch-btn dheel-btn">💨 DHEEL</button>
-        <button id="btn-khinch" class="touch-btn khinch-btn">⚡ KHINCH</button>
+      <div class="control-cluster">
+        <button type="button" id="btn-dheel" class="action-btn dheel-btn">💨 DHEEL</button>
+        <button type="button" id="btn-khinch" class="action-btn khinch-btn">⚡ KHINCH</button>
       </div>
     </div>
   </div>
