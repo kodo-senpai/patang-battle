@@ -4,6 +4,7 @@ const ctx = canvas.getContext('2d');
 
 let myId = null;
 let currentRoom = null;
+let mySide = null;
 let clouds = [];
 let sparks = [];
 
@@ -23,58 +24,67 @@ function resizeCanvas() {
 window.addEventListener('resize', resizeCanvas);
 resizeCanvas();
 
-const inputState = { left: false, right: false, khinch: false, dheel: false };
+// Local active player state
+const localPlayers = {
+  left: { x: 25, y: 45, vx: 0, vy: 0, angle: 0, tension: 70, isCut: false, name: 'Player 1', score: 0 },
+  right: { x: 75, y: 45, vx: 0, vy: 0, angle: 0, tension: 70, isCut: false, name: 'Player 2', score: 0 }
+};
+
+let windSpeed = 0.4;
+const inputs = { left: false, right: false, khinch: false, dheel: false };
 
 function syncInputs() {
-  socket.emit('inputState', inputState);
+  socket.emit('playerInput', inputs);
 }
 
-// Solid Touch and Click binding (Mouse + Mobile Touch)
-function setupButton(id, actionKey) {
-  const btn = document.getElementById(id);
+// Mobile Touch & Mouse binding
+function bindAction(btnId, actionKey) {
+  const btn = document.getElementById(btnId);
   if (!btn) return;
 
-  const press = (e) => {
+  const onStart = (e) => {
     e.preventDefault();
+    e.stopPropagation();
     sounds.init();
     if (actionKey === 'khinch') sounds.playKhinch();
-    inputState[actionKey] = true;
+    inputs[actionKey] = true;
     syncInputs();
   };
 
-  const release = (e) => {
+  const onEnd = (e) => {
     e.preventDefault();
-    inputState[actionKey] = false;
+    e.stopPropagation();
+    inputs[actionKey] = false;
     syncInputs();
   };
 
-  btn.addEventListener('touchstart', press, { passive: false });
-  btn.addEventListener('touchend', release, { passive: false });
-  btn.addEventListener('mousedown', press);
-  btn.addEventListener('mouseup', release);
-  btn.addEventListener('mouseleave', release);
+  btn.addEventListener('touchstart', onStart, { passive: false });
+  btn.addEventListener('touchend', onEnd, { passive: false });
+  btn.addEventListener('mousedown', onStart);
+  btn.addEventListener('mouseup', onEnd);
+  btn.addEventListener('mouseleave', onEnd);
 }
 
-setupButton('btn-steer-left', 'left');
-setupButton('btn-steer-right', 'right');
-setupButton('btn-khinch', 'khinch');
-setupButton('btn-dheel', 'dheel');
+bindAction('btn-steer-left', 'left');
+bindAction('btn-steer-right', 'right');
+bindAction('btn-khinch', 'khinch');
+bindAction('btn-dheel', 'dheel');
 
-// Keyboard binding for desktop testing
+// Keyboard binding
 window.addEventListener('keydown', (e) => {
   sounds.init();
-  if (e.key === 'ArrowLeft' || e.key === 'a') inputState.left = true;
-  if (e.key === 'ArrowRight' || e.key === 'd') inputState.right = true;
-  if (e.key === ' ' || e.key === 'w') { inputState.khinch = true; sounds.playKhinch(); }
-  if (e.key === 's' || e.key === 'Shift') inputState.dheel = true;
+  if (e.key === 'ArrowLeft' || e.key === 'a') inputs.left = true;
+  if (e.key === 'ArrowRight' || e.key === 'd') inputs.right = true;
+  if (e.key === ' ' || e.key === 'w') { inputs.khinch = true; sounds.playKhinch(); }
+  if (e.key === 's' || e.key === 'Shift') inputs.dheel = true;
   syncInputs();
 });
 
 window.addEventListener('keyup', (e) => {
-  if (e.key === 'ArrowLeft' || e.key === 'a') inputState.left = false;
-  if (e.key === 'ArrowRight' || e.key === 'd') inputState.right = false;
-  if (e.key === ' ' || e.key === 'w') inputState.khinch = false;
-  if (e.key === 's' || e.key === 'Shift') inputState.dheel = false;
+  if (e.key === 'ArrowLeft' || e.key === 'a') inputs.left = false;
+  if (e.key === 'ArrowRight' || e.key === 'd') inputs.right = false;
+  if (e.key === ' ' || e.key === 'w') inputs.khinch = false;
+  if (e.key === 's' || e.key === 'Shift') inputs.dheel = false;
   syncInputs();
 });
 
@@ -89,40 +99,50 @@ document.getElementById('btn-join').addEventListener('click', () => {
 
 socket.on('connect', () => { myId = socket.id; });
 
-socket.on('waitingForOpponent', () => {
-  document.getElementById('lobby-status').innerText = 'Room ban gaya! Dusre phone se same code join karein.';
+socket.on('waitingForOpponent', (data) => {
+  mySide = data.side;
+  document.getElementById('lobby-status').innerText = 'Room ban gaya! Dusre device me same room code enter karein.';
 });
 
 socket.on('gameStart', (roomData) => {
   currentRoom = roomData;
+  const pList = Object.values(roomData.players);
+  const me = pList.find(p => p.id === myId);
+  if (me) mySide = me.side;
+
   document.getElementById('lobby-screen').classList.add('hidden');
   document.getElementById('game-ui').classList.remove('hidden');
 });
 
 socket.on('tick', ({ players, wind }) => {
-  if (!currentRoom) currentRoom = {};
-  currentRoom.players = players;
-  currentRoom.wind = wind;
+  windSpeed = wind;
+  for (const id in players) {
+    const s = players[id].side;
+    if (localPlayers[s]) {
+      // Remote player sync
+      if (s !== mySide) {
+        localPlayers[s].x += (players[id].x - localPlayers[s].x) * 0.4;
+        localPlayers[s].y += (players[id].y - localPlayers[s].y) * 0.4;
+        localPlayers[s].angle = players[id].angle;
+        localPlayers[s].tension = players[id].tension;
+      }
+      localPlayers[s].isCut = players[id].isCut;
+      localPlayers[s].name = players[id].name;
+      localPlayers[s].score = players[id].score;
+    }
+  }
 
-  const pList = Object.values(players);
-  if (pList[0]) {
-    document.getElementById('p1-name').innerText = pList[0].name;
-    document.getElementById('p1-score').innerText = pList[0].score;
-  }
-  if (pList[1]) {
-    document.getElementById('p2-name').innerText = pList[1].name;
-    document.getElementById('p2-score').innerText = pList[1].score;
-  }
+  document.getElementById('p1-name').innerText = localPlayers.left.name;
+  document.getElementById('p1-score').innerText = localPlayers.left.score;
+  document.getElementById('p2-name').innerText = localPlayers.right.name;
+  document.getElementById('p2-score').innerText = localPlayers.right.score;
+
   const windArrow = document.getElementById('wind-arrow');
   windArrow.style.transform = `rotate(${wind > 0 ? 0 : 180}deg)`;
 });
 
 socket.on('kiteCutBroadcast', () => {
   sounds.playCutCelebration();
-});
-
-socket.on('roundReset', (roomData) => {
-  currentRoom = roomData;
 });
 
 function getLineCross(x1, y1, x2, y2, x3, y4) {
@@ -136,21 +156,82 @@ function getLineCross(x1, y1, x2, y2, x3, y4) {
   return null;
 }
 
+// 60 FPS Local Physics Loop
+function updatePhysics() {
+  const side = mySide || 'left';
+  const me = localPlayers[side];
+
+  if (me && !me.isCut) {
+    // Steer angle
+    if (inputs.left) me.angle = Math.max(-45, me.angle - 3.5);
+    else if (inputs.right) me.angle = Math.min(45, me.angle + 3.5);
+    else me.angle *= 0.92;
+
+    const rad = (me.angle * Math.PI) / 180;
+
+    // Khinch & Dheel
+    if (inputs.khinch) {
+      me.vx += Math.sin(rad) * 0.7;
+      me.vy -= 0.5;
+      me.tension = Math.min(100, me.tension + 1.2);
+    } else if (inputs.dheel) {
+      me.vx += windSpeed * 0.15;
+      me.vy += 0.25;
+      me.tension = Math.max(15, me.tension - 1.5);
+    } else {
+      me.tension += (65 - me.tension) * 0.05;
+      me.vy += 0.05; // slight gravity
+    }
+
+    me.vx += windSpeed * 0.05 + Math.sin(rad) * 0.15;
+
+    // Damping
+    me.vx *= 0.93;
+    me.vy *= 0.93;
+
+    me.x += me.vx;
+    me.y += me.vy;
+
+    // Screen limits
+    me.x = Math.max(10, Math.min(90, me.x));
+    me.y = Math.max(15, Math.min(75, me.y));
+
+    // Send position to server
+    socket.emit('updatePosition', {
+      x: me.x,
+      y: me.y,
+      angle: me.angle,
+      tension: me.tension
+    });
+  }
+
+  // Animate cut kites
+  ['left', 'right'].forEach(s => {
+    const p = localPlayers[s];
+    if (p.isCut) {
+      p.y += 0.5;
+      p.x += windSpeed * 0.4;
+      p.angle += 4;
+    }
+  });
+}
+
 let waveTime = 0;
 function render() {
+  updatePhysics();
   waveTime += 0.05;
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-  // Background Sky
+  // Sunny Sky
   const grad = ctx.createLinearGradient(0, 0, 0, canvas.height);
   grad.addColorStop(0, '#0284c7');
-  grad.addColorStop(0.6, '#38bdf8');
+  grad.addColorStop(0.65, '#38bdf8');
   grad.addColorStop(1, '#ffedd5');
   ctx.fillStyle = grad;
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-  // Drifting Clouds
-  ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
+  // Clouds
+  ctx.fillStyle = 'rgba(255, 255, 255, 0.55)';
   clouds.forEach(c => {
     c.x += c.speed;
     if (c.x > canvas.width + 80) c.x = -80;
@@ -161,108 +242,108 @@ function render() {
     ctx.fill();
   });
 
-  // Rooftop Silhouette
+  // Rooftop
   ctx.fillStyle = '#0f172a';
   ctx.fillRect(0, canvas.height - 35, canvas.width, 35);
   for (let rx = 0; rx < canvas.width; rx += 40) {
     ctx.fillRect(rx, canvas.height - 50, 16, 15);
   }
 
-  if (currentRoom && currentRoom.players) {
-    const players = Object.values(currentRoom.players);
-    let kitePoints = [];
+  let kitePoints = [];
 
-    players.forEach((p) => {
-      const kx = (p.x / 100) * canvas.width;
-      const ky = (p.y / 100) * canvas.height;
-      const handX = p.side === 'left' ? canvas.width * 0.16 : canvas.width * 0.84;
-      const handY = canvas.height - 35;
+  ['left', 'right'].forEach((side) => {
+    const p = localPlayers[side];
+    const kx = (p.x / 100) * canvas.width;
+    const ky = (p.y / 100) * canvas.height;
+    const handX = side === 'left' ? canvas.width * 0.16 : canvas.width * 0.84;
+    const handY = canvas.height - 35;
 
-      const slack = (100 - p.tension) * 0.7 + Math.sin(waveTime * 3 + p.x) * 4;
-      const midX = (handX + kx) / 2;
-      const midY = (handY + ky) / 2 + slack;
+    // String with curve & tension
+    const slack = (100 - p.tension) * 0.8 + Math.sin(waveTime * 3 + p.x) * 3;
+    const midX = (handX + kx) / 2;
+    const midY = (handY + ky) / 2 + slack;
 
-      if (!p.isCut) {
-        ctx.beginPath();
-        ctx.moveTo(handX, handY);
-        ctx.quadraticCurveTo(midX, midY, kx, ky);
-        ctx.strokeStyle = p.side === 'left' ? '#f43f5e' : '#10b981';
-        ctx.lineWidth = 2.4;
-        ctx.stroke();
+    if (!p.isCut) {
+      ctx.beginPath();
+      ctx.moveTo(handX, handY);
+      ctx.quadraticCurveTo(midX, midY, kx, ky);
+      ctx.strokeStyle = side === 'left' ? '#f43f5e' : '#10b981';
+      ctx.lineWidth = 2.4;
+      ctx.stroke();
 
-        // Charkhi
-        ctx.fillStyle = '#b45309';
-        ctx.fillRect(handX - 8, handY - 10, 16, 20);
-        ctx.fillStyle = p.side === 'left' ? '#ef4444' : '#10b981';
-        ctx.fillRect(handX - 6, handY - 7, 12, 14);
+      // Spool
+      ctx.fillStyle = '#b45309';
+      ctx.fillRect(handX - 8, handY - 10, 16, 20);
+      ctx.fillStyle = side === 'left' ? '#ef4444' : '#10b981';
+      ctx.fillRect(handX - 6, handY - 7, 12, 14);
+    }
+
+    // Kite Body
+    ctx.save();
+    ctx.translate(kx, ky);
+    const flutter = Math.sin(waveTime * 7) * 2;
+    ctx.rotate(((p.angle + flutter) * Math.PI) / 180);
+
+    ctx.beginPath();
+    ctx.moveTo(0, -30);
+    ctx.lineTo(24, 0);
+    ctx.lineTo(0, 30);
+    ctx.lineTo(-24, 0);
+    ctx.closePath();
+    ctx.fillStyle = side === 'left' ? '#ea580c' : '#7c3aed';
+    ctx.fill();
+    ctx.strokeStyle = '#ffffff';
+    ctx.lineWidth = 2.5;
+    ctx.stroke();
+
+    // Bamboo Frame
+    ctx.beginPath();
+    ctx.moveTo(0, -30);
+    ctx.lineTo(0, 30);
+    ctx.moveTo(-24, 0);
+    ctx.quadraticCurveTo(0, -16, 24, 0);
+    ctx.strokeStyle = '#78350f';
+    ctx.lineWidth = 1.6;
+    ctx.stroke();
+
+    // Tail
+    ctx.beginPath();
+    ctx.moveTo(0, 30);
+    ctx.lineTo(-6, 48 + Math.sin(waveTime * 5) * 3);
+    ctx.lineTo(6, 48 + Math.sin(waveTime * 5) * 3);
+    ctx.closePath();
+    ctx.fillStyle = '#facc15';
+    ctx.fill();
+
+    ctx.restore();
+    kitePoints.push({ side, handX, handY, kx, ky, p });
+  });
+
+  // Pecha collision detection
+  if (kitePoints.length === 2 && !kitePoints[0].p.isCut && !kitePoints[1].p.isCut) {
+    const p1 = kitePoints[0];
+    const p2 = kitePoints[1];
+    const cross = getLineCross(p1.handX, p1.handY, p1.kx, p1.ky, p2.handX, p2.handY, p2.kx, p2.ky);
+
+    if (cross) {
+      for (let s = 0; s < 2; s++) {
+        sparks.push({
+          x: cross.x,
+          y: cross.y,
+          vx: (Math.random() - 0.5) * 4,
+          vy: (Math.random() - 0.5) * 4,
+          life: 0.5,
+          color: '#ffffff'
+        });
       }
 
-      // Draw Kite
-      ctx.save();
-      ctx.translate(kx, ky);
-      const flutter = Math.sin(waveTime * 8) * 3;
-      ctx.rotate(((p.angle + flutter) * Math.PI) / 180);
-
-      // Kite Body
-      ctx.beginPath();
-      ctx.moveTo(0, -30);
-      ctx.lineTo(24, 0);
-      ctx.lineTo(0, 30);
-      ctx.lineTo(-24, 0);
-      ctx.closePath();
-      ctx.fillStyle = p.side === 'left' ? '#ea580c' : '#7c3aed';
-      ctx.fill();
-      ctx.strokeStyle = '#ffffff';
-      ctx.lineWidth = 2.5;
-      ctx.stroke();
-
-      // Bamboo sticks
-      ctx.beginPath();
-      ctx.moveTo(0, -30);
-      ctx.lineTo(0, 30);
-      ctx.moveTo(-24, 0);
-      ctx.quadraticCurveTo(0, -16, 24, 0);
-      ctx.strokeStyle = '#78350f';
-      ctx.lineWidth = 1.6;
-      ctx.stroke();
-
-      // Tail
-      ctx.beginPath();
-      ctx.moveTo(0, 30);
-      ctx.lineTo(-6, 48 + Math.sin(waveTime * 5) * 3);
-      ctx.lineTo(6, 48 + Math.sin(waveTime * 5) * 3);
-      ctx.closePath();
-      ctx.fillStyle = '#facc15';
-      ctx.fill();
-
-      ctx.restore();
-      kitePoints.push({ p, handX, handY, kx, ky });
-    });
-
-    // Pecha Cross Check
-    if (kitePoints.length === 2 && !kitePoints[0].p.isCut && !kitePoints[1].p.isCut) {
-      const p1 = kitePoints[0];
-      const p2 = kitePoints[1];
-      const cross = getLineCross(p1.handX, p1.handY, p1.kx, p1.ky, p2.handX, p2.handY, p2.kx, p2.ky);
-
-      if (cross) {
-        for (let s = 0; s < 2; s++) {
-          sparks.push({
-            x: cross.x,
-            y: cross.y,
-            vx: (Math.random() - 0.5) * 4,
-            vy: (Math.random() - 0.5) * 4,
-            life: 0.5,
-            color: '#ffffff'
-          });
+      if (mySide === 'left') {
+        if (inputs.khinch && p2.p.tension < 50) {
+          socket.emit('playerCutKite', { loserSide: 'right' });
         }
-
-        if (p1.p.id === myId) {
-          if (p1.p.inputs.khinch && p2.p.inputs.dheel) {
-            socket.emit('playerCutKite', { loserId: p2.p.id });
-          } else if (p2.p.inputs.khinch && p1.p.inputs.dheel) {
-            socket.emit('playerCutKite', { loserId: p1.p.id });
-          }
+      } else if (mySide === 'right') {
+        if (inputs.khinch && p1.p.tension < 50) {
+          socket.emit('playerCutKite', { loserSide: 'left' });
         }
       }
     }
