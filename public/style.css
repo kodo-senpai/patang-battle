@@ -4,7 +4,7 @@
   padding: 0;
   user-select: none;
   -webkit-user-select: none;
-  touch-action: none;
+  touch-action: manipulation;
   font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
 }
 
@@ -35,13 +35,12 @@ body, html {
   justify-content: space-between;
   align-items: center;
   padding: 0 18px;
-  background: rgba(15, 23, 42, 0.45);
+  background: rgba(15, 23, 42, 0.65);
   backdrop-filter: blur(10px);
   border: 1px solid rgba(255, 255, 255, 0.2);
   border-radius: 26px;
-  z-index: 10;
+  z-index: 100;
   color: white;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
 }
 
 .score-box {
@@ -67,64 +66,70 @@ body, html {
   color: #38bdf8;
 }
 
-/* Mobile Touch Controls */
+#wind-arrow {
+  display: inline-block;
+  font-size: 18px;
+  transition: transform 0.3s ease;
+}
+
+/* Touch Controls Fixed Layer */
 .touch-zone {
-  position: absolute;
-  bottom: 20px;
+  position: fixed;
+  bottom: 25px;
   left: 0;
   right: 0;
   display: flex;
   justify-content: space-between;
-  padding: 0 20px;
-  z-index: 10;
+  padding: 0 24px;
+  z-index: 999;
   pointer-events: none;
 }
 
 .control-cluster {
   display: flex;
-  gap: 12px;
+  gap: 16px;
   pointer-events: auto;
 }
 
 .action-btn {
-  width: 72px;
-  height: 72px;
   border-radius: 50%;
-  border: 3px solid rgba(255, 255, 255, 0.5);
+  border: 3px solid rgba(255, 255, 255, 0.6);
   color: white;
   font-weight: 800;
-  font-size: 13px;
   display: flex;
-  flex-direction: column;
   justify-content: center;
   align-items: center;
   cursor: pointer;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
-  transition: transform 0.08s ease, filter 0.08s ease;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.4);
+  touch-action: manipulation;
+  outline: none;
 }
 
-.action-btn:active, .action-btn.active {
-  transform: scale(0.88);
-  filter: brightness(1.25);
+.action-btn:active {
+  transform: scale(0.9);
 }
 
 .steer-btn {
-  background: radial-gradient(circle, #334155, #0f172a);
+  background: #1e293b;
+  width: 65px;
+  height: 65px;
   font-size: 24px;
-}
-
-.khinch-btn {
-  background: radial-gradient(circle, #ef4444, #991b1b);
-  border-color: #fca5a5;
-  width: 82px;
-  height: 82px;
 }
 
 .dheel-btn {
   background: radial-gradient(circle, #0284c7, #0369a1);
   border-color: #7dd3fc;
-  width: 82px;
-  height: 82px;
+  width: 75px;
+  height: 75px;
+  font-size: 12px;
+}
+
+.khinch-btn {
+  background: radial-gradient(circle, #ef4444, #991b1b);
+  border-color: #fca5a5;
+  width: 75px;
+  height: 75px;
+  font-size: 12px;
 }
 
 /* Overlay Card */
@@ -135,7 +140,7 @@ body, html {
   align-items: center;
   justify-content: center;
   background: radial-gradient(circle at center, #0f172a 0%, #020617 100%);
-  z-index: 100;
+  z-index: 1000;
 }
 
 .card {
@@ -151,7 +156,7 @@ body, html {
 }
 
 .card h1 {
-  font-size: 28px;
+  font-size: 26px;
   margin-bottom: 6px;
   color: #fef08a;
 }
@@ -171,7 +176,6 @@ input {
   color: white;
   font-size: 16px;
   text-align: center;
-  outline: none;
 }
 
 .btn-play {
@@ -184,7 +188,12 @@ input {
   color: white;
   background: linear-gradient(135deg, #f97316, #e11d48);
   cursor: pointer;
-  box-shadow: 0 4px 16px rgba(249, 115, 22, 0.4);
+}
+
+.status-text {
+  color: #38bdf8;
+  font-size: 13px;
+  margin-top: 14px;
 }
 
 .hidden { display: none !important; }
